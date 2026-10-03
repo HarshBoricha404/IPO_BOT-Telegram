@@ -89,7 +89,7 @@ def _canonical_header(text: str) -> str:
         return "trend"
     if "price band" in value or value == "price":
         return "price"
-    if "est" in value and "listing" in value:
+    if "est" in value and ("listing" in value or "gain" in value):
         return "estimated"
     if "listing price" in value:
         return "listing_price"
@@ -295,6 +295,41 @@ def parse_updated_at(text: str, now: datetime, page_date: date | None = None) ->
         return None
 
 
+def _page_updated_at(soup: BeautifulSoup) -> datetime | None:
+    meta = soup.find(
+        "meta",
+        attrs={"property": re.compile(r"^article:(?:modified|published)_time$", re.I)},
+    )
+    value = meta.get("content") if isinstance(meta, Tag) else None
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=IST)
+    return parsed.astimezone(IST)
+
+
+def _ipowatch_name_metadata(name: str) -> tuple[str, str, str]:
+    """Extract status/type now embedded in compact IPO Watch company cells."""
+    match = re.search(
+        r"\s+\((?P<status>[OUC])\)\s+(?P<type>Mainboard|SME)\s*$",
+        name,
+        re.I,
+    )
+    if not match:
+        return name, "", ""
+    status = {
+        "O": "Open",
+        "U": "Upcoming",
+        "C": "Closed",
+    }[match.group("status").upper()]
+    ipo_type = "SME" if match.group("type").lower() == "sme" else "Mainboard"
+    return name[: match.start()].strip(), status, ipo_type
+
+
 def _trend(text: str) -> str:
     value = text.lower()
     if "🟢" in text or "green" in value or "up" in value:
@@ -337,11 +372,12 @@ def parse_ipowatch_gmp_html(
 ) -> list[IpoRecord]:
     now = now or datetime.now(IST)
     soup = BeautifulSoup(html, "lxml")
+    page_updated_at = _page_updated_at(soup)
     records: list[IpoRecord] = []
 
     for table in soup.find_all("table"):
         headers, header_row = _table_headers(table)
-        if not header_row or not {"name", "gmp", "status"}.issubset(headers):
+        if not header_row or not {"name", "gmp", "date"}.issubset(headers):
             continue
         heading = table.find_previous(["h2", "h3", "h4"])
         heading_text = _clean(heading.get_text(" ", strip=True) if heading else "")
@@ -355,9 +391,10 @@ def parse_ipowatch_gmp_html(
             cells = row.find_all(["td", "th"], recursive=False)
             if not cells:
                 continue
-            name = _value(cells, headers, "name")
-            if not name:
+            raw_name = _value(cells, headers, "name")
+            if not raw_name:
                 continue
+            name, embedded_status, embedded_type = _ipowatch_name_metadata(raw_name)
             name_cell = cells[headers["name"]]
             link = name_cell.find("a", href=True)
             price_text = _value(cells, headers, "price")
@@ -373,13 +410,18 @@ def parse_ipowatch_gmp_html(
                 gain_pct = round(gmp / prices[-1] * 100, 2)
             date_text = _value(cells, headers, "date")
             open_date, close_date = parse_date_range(date_text, now.date())
-            raw_status = _value(cells, headers, "status").title()
+            raw_status = _value(cells, headers, "status").title() or embedded_status
             derived_status = _status_from_dates(open_date, close_date, now.date())
             status = raw_status if raw_status in {"Open", "Upcoming", "Closed"} else derived_status
             warnings: list[str] = []
             if derived_status != "Unknown" and status != derived_status:
                 warnings.append("status/date mismatch")
-            ipo_type = section_type or _value(cells, headers, "type") or "Unknown"
+            ipo_type = (
+                section_type
+                or _value(cells, headers, "type")
+                or embedded_type
+                or "Unknown"
+            )
             ipo_type = "SME" if "sme" in ipo_type.lower() else (
                 "Mainboard" if ipo_type else "Unknown"
             )
@@ -398,7 +440,10 @@ def parse_ipowatch_gmp_html(
                 open_date=open_date,
                 close_date=close_date,
                 date_text=date_text,
-                updated_at=parse_updated_at(_value(cells, headers, "updated"), now),
+                updated_at=(
+                    parse_updated_at(_value(cells, headers, "updated"), now)
+                    or page_updated_at
+                ),
                 fetched_at=now,
                 url=_safe_url(link.get("href") if link else None),
                 warnings=warnings,

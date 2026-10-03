@@ -53,6 +53,42 @@ def test_new_ipowatch_layout_parses_two_sections_and_normalizes_values() -> None
     assert (sme.open_date, sme.close_date) == (date(2026, 8, 31), date(2026, 9, 2))
 
 
+def test_compact_ipowatch_layout_derives_metadata_and_page_freshness() -> None:
+    now = datetime(2026, 10, 3, 18, 0, tzinfo=IST)
+    upcoming, opened, closed = parse_ipowatch_gmp_html(
+        fixture("gmp_compact.html"),
+        now=now,
+    )
+
+    assert (upcoming.name, upcoming.ipo_type, upcoming.status) == (
+        "Future Platform",
+        "Mainboard",
+        "Upcoming",
+    )
+    assert upcoming.url == "https://ipowatch.in/future-platform-ipo/"
+    assert upcoming.price_high is None
+
+    assert (opened.name, opened.ipo_type, opened.status) == (
+        "Acme Industries",
+        "SME",
+        "Open",
+    )
+    assert (opened.price_high, opened.gmp_rs, opened.gain_pct) == (196, 25, 12.76)
+    assert opened.estimated_listing == 221
+    assert (opened.open_date, opened.close_date) == (
+        date(2026, 9, 30),
+        date(2026, 10, 6),
+    )
+    assert opened.updated_at == datetime(2026, 10, 3, 16, 20, 20, tzinfo=IST)
+
+    assert closed.status == "Closed"
+    assert (closed.open_date, closed.close_date) == (
+        date(2026, 9, 29),
+        date(2026, 10, 1),
+    )
+    assert not closed.warnings
+
+
 def test_old_single_table_layout_uses_type_column_and_year_boundary() -> None:
     now = datetime(2027, 1, 1, 10, 0, tzinfo=IST)
     record = parse_ipowatch_gmp_html(fixture("gmp_old.html"), now=now)[0]
