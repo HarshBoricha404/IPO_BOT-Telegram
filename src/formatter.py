@@ -4,7 +4,7 @@ from datetime import date, datetime
 from html import escape
 
 from src.models import IpoRecord, SignalResult
-from src.scraper import IST
+from src.scraper import CLOSE_WITHIN_DAYS, IST
 
 _WHY_COPY = (
     ("useful listing-gain band", "Grey-market premium is in a useful range"),
@@ -258,7 +258,7 @@ def format_digest(
     title = "Today's IPO pick" if actionable else "No clear IPO to apply today"
     header = f"<b>{title} — {_format_day(today)}</b>"
     if actionable:
-        header += "\nOnly issues closing within 2 days are listed."
+        header += f"\nOnly issues closing within {CLOSE_WITHIN_DAYS} days are listed."
     disclaimer = (
         "\n\n<i>Grey-market premium is unofficial and not a guaranteed listing gain. "
         "This is not investment advice. Check the RHP before applying.</i>"
@@ -266,7 +266,8 @@ def format_digest(
 
     if not signals:
         return [
-            f"{header}\n\nNothing open and closing within 2 days looks worth applying today."
+            f"{header}\n\nNothing open and closing within {CLOSE_WITHIN_DAYS} days "
+            "looks worth applying today."
             f"\nMinimum grey-market gain used: {min_gain_pct:g}%{disclaimer}"
         ]
 

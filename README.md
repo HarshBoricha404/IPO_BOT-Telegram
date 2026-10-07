@@ -61,9 +61,9 @@ The bot never averages unofficial GMP values. A material source disagreement low
 
 ## Signal rules
 
-Only an IPO that is **open today**, **closes today or within the next 2 days**, has fresh and parseable data, positive GMP, and meets `MIN_GAIN_PCT` can receive `CONSIDER`.
+Only an IPO that is **open today**, **closes today or within the next 4 days**, has fresh and parseable data, positive GMP, and meets `MIN_GAIN_PCT` can receive `CONSIDER`.
 
-- `CONSIDER`: actionable open IPO closing within 2 days, with signal score at least 60
+- `CONSIDER`: actionable open IPO closing within 4 days, with signal score at least 60
 - `WATCH`: stale/disputed, below the strong threshold, or still open but closing later
 - `LOW SIGNAL`: non-positive GMP or weak/conflicting evidence
 
@@ -79,7 +79,7 @@ The 0–100 signal score now follows a listing-gain checklist, not “highest GM
 - Fresh issue is preferred over a mostly-OFS exit; debt-repay objects and sharp promoter dilution are penalised
 - Heavy oversubscription is flagged as a lottery, not extra strength
 
-Detail pages are fetched for every open issue closing within 2 days (not only the GMP top 3).
+Detail pages are fetched for every open issue closing within 4 days (not only the GMP top 3).
 
 The bot cannot read an RHP for promoter integrity or business model. Those still need a human.
 

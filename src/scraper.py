@@ -20,7 +20,7 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
 )
 IST = ZoneInfo("Asia/Kolkata")
-CLOSE_WITHIN_DAYS = 2
+CLOSE_WITHIN_DAYS = 4
 
 _MONTHS = {
     "jan": 1,

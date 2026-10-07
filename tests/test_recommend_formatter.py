@@ -148,7 +148,7 @@ def test_formatter_escapes_html_and_stays_under_telegram_limit() -> None:
 def test_empty_result_formats_explicit_no_signal_message() -> None:
     message = format_digest([], 10, now=NOW)[0]
     assert "No clear IPO to apply today" in message
-    assert "closing within 2 days" in message
+    assert "closing within 4 days" in message
     assert "not investment advice" in message
 
 
@@ -157,15 +157,16 @@ def test_open_ipo_closing_later_is_not_consider() -> None:
     result = score_ipo(later, 10, now=NOW)
 
     assert result.label == "WATCH"
-    assert any("more than 2 days away" in reason for reason in result.reasons)
+    assert any("more than 4 days away" in reason for reason in result.reasons)
 
 
-def test_recommend_keeps_only_ipos_closing_within_two_days() -> None:
+def test_recommend_keeps_only_ipos_closing_within_four_days() -> None:
     closing_today = record("Closes Today", close_date=date(2026, 9, 11))
     closing_in_two = record("Closes In Two", close_date=date(2026, 9, 13))
-    closing_later = record("Closes Later", close_date=date(2026, 9, 15))
+    closing_in_four = record("Closes In Four", close_date=date(2026, 9, 15))
+    closing_later = record("Closes Later", close_date=date(2026, 9, 16))
     picked = recommend_ipos(
-        [closing_today, closing_in_two, closing_later],
+        [closing_today, closing_in_two, closing_in_four, closing_later],
         10,
         now=NOW,
         limit=5,
@@ -174,6 +175,7 @@ def test_recommend_keeps_only_ipos_closing_within_two_days() -> None:
 
     assert "Closes Today" in names
     assert "Closes In Two" in names
+    assert "Closes In Four" in names
     assert "Closes Later" not in names
 
 
